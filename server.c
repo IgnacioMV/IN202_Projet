@@ -44,7 +44,7 @@ int create_a_listening_socket(char *srv_port, int maxconn){
   ret_code = getaddrinfo(NULL,srv_port,&hints,&result);
 
   if(ret_code == -1)
-    PERROR("ret_code == -1");
+    PERROR("ret_code: -1");
 
   for (rp = result; rp != NULL; rp = rp->ai_next) {
     /* Tentative de création de la socket */
@@ -70,7 +70,7 @@ int create_a_listening_socket(char *srv_port, int maxconn){
 //listen
   /* Configuration de la socket en écoute passive */
   int listenCode = listen(srv_sock, maxconn);
-  printf("listenCode == %i\n",listenCode);
+  printf("listenCode: %i\n",listenCode);
 
   return srv_sock;
 }
@@ -89,7 +89,7 @@ int accept_clt_conn(int srv_sock, struct sockaddr_storage *clt_sockaddr){
 
   /* mise en attente de connexion sur la socket */
   clt_sock = accept(srv_sock, 0, 0);
-  printf("clt_sock == %i\n",clt_sock);
+  printf("clt_sock: %i\n",clt_sock);
 
   //DEBUG("connexion accepted");
 
@@ -110,11 +110,17 @@ ssize_t transfert_fichier(int sd, int fd) {
 
   /* lecture du fichier par clock de BUFF_SIZE octet
      et envoi du contenu au client */
-  while (0) {
+  printf("---SEND FILE---\n");
+  while ((size = read(fd, buff, BUFF_SIZE)) > 0)
+  {
+    
     nb_sent += size;
+    printf("size: %zd\n", size);
+    send_msg(sd, DATA, size, &buff);
   };
-
+  printf("nb_sent total: %zd\n", nb_sent);
   /* Envoi du message de fin de fichier */
+  send_msg(sd, END_OK, 0, NULL);
 
   return nb_sent;
 }
@@ -132,15 +138,19 @@ int requete_client(int sock)
   char file_size[BUFF_SIZE];
 
   // Réception de la requête contenant le nom du fichier à télécharger
-  int reqCode = recv_msg(sock, code, size, buff);
-  printf("received %i octets\n", reqCode);
+  int reqCode = recv_msg(sock, &code, &size, &buff);
+  //printf("received %i octets\n", size);
+  if (code == GET_FILE)
+    printf("GET_FILE\n");
+  
+  printf("reqCode: %i\n",reqCode);
   if (reqCode == -1)
-    printf("reqCode == %i\n",reqCode);
+    PERROR("reqCode: -1");
 
   // Ouverture en lecture du fichier demandé
-  printf("%s\n", file_size);
-  file_fd = open(file_size, O_RDONLY);
-  printf("file_fd == %i\n", file_fd);
+  printf("fileName: %s\n", &buff);
+  file_fd = open(&buff, O_RDONLY);
+  printf("file_fd: %i\n", file_fd);
 
   if ( file_fd == -1 )
     { // Gestion des cas d'erreur lors de l'ouverture du fichier
@@ -152,14 +162,9 @@ int requete_client(int sock)
     printf("fstat failed\n");
   printf("File Size: \t\t%d bytes\n",file_stat.st_size);
   snprintf(file_size, BUFF_SIZE, "%llu", (unsigned long long)file_stat.st_size);
-  printf("%s\n",file_size);
   // envoi de la réponse au client (code + taille du fichier)
-  strcpy(buff, "200 File found\n");
-  int sendCode = send(sock, buff, strlen(buff), 0);
-  printf("sendCode == %i\n",sendCode);
-
-  sendCode = send(sock, file_size, strlen(file_size), 0);
-  printf("sendCode == %i\n",sendCode);
+  int sendCode = send_msg(sock, ACCESS_OK, strlen(file_size)+1, file_size);
+  printf("sendCode: %i\n",sendCode);
 
   return file_fd;
 
@@ -191,7 +196,7 @@ int main(void)
       file_fd = requete_client(con_fd);
 
       // transfert du fichier
-
+      transfert_fichier(con_fd, file_fd);
 
       // fermeture du fichier
 

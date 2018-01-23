@@ -15,11 +15,13 @@ int send_msg(int sock, unsigned char code, unsigned char size, char *body)
   msg_t msg;
   msg.code = code;
   msg.size = size;
+  printf("msg_send.code == %i\n", msg.code);
+  printf("msg_send.size == %i\n", msg.size);
   /* sending message head */
-  send(sock, msg.code, BUFF_SIZE, 0);
-  send(sock, msg.size, BUFF_SIZE, 0);
+  send(sock, &msg, HEADSIZE, 0);
   /* sending message body if any */
-  send(sock, body, BUFF_SIZE, 0);
+  if (size != 0)
+    send(sock, body, size, 0);
 
   return size+HEADSIZE;
 }
@@ -35,14 +37,18 @@ int recv_msg(int sock, unsigned char *code, unsigned char *size, char **body)
   msg_t msg;
 
   /*receiving message head */
-  recv(sock, msg.code, BUFF_SIZE, 0);
-  printf("msg.code == %i\n",msg.code);
-  if (msg.code == 11)
-    printf("GET_FILE\n");
-  recv(sock, msg.size, BUFF_SIZE, 0);
-  printf("msg.size == %i\n",msg.size);
-  /* receiving message body if any */
-  recv(sock, body, BUFF_SIZE, 0);
+  recv(sock, &msg, HEADSIZE, 0);
+  printf("msg_recv.code == %i\n",msg.code);
+  
+  *code = msg.code;
+  *size = msg.size;
 
-  return *size+HEADSIZE;
+  /* receiving message body if any */
+  if (msg.size != 0) {
+    recv(sock, body, msg.size, 0);
+    printf("body_recv == %s\n", body);
+  }
+  printf("msg_recv.size == %i\n",msg.size);
+  printf("msg.size+HEADSIZE == %i\n", msg.size+HEADSIZE);
+  return msg.size+HEADSIZE;
 }

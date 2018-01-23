@@ -44,14 +44,14 @@ int connect_to_server(char *srv_name, char *srv_port){
   ret_code = getaddrinfo(srv_name,srv_port,&hints,&result);
 
   if(ret_code == -1)
-    PERROR("ret_code == -1");
+    PERROR("ret_code: -1");
 
   for (rp = result; rp != NULL; rp = rp->ai_next) {
     DEBUG("before for");
     /* Tentative création de la socket */
     clt_sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
     if (clt_sock == -1) {
-      printf("clt_sock == -1\n");
+      printf("clt_sock: -1\n");
       continue;
     }
 
@@ -84,15 +84,24 @@ int connect_to_server(char *srv_name, char *srv_port){
  */
 int reception_fichier(int fd, int sd, int fz)
 {
+  printf("receiving file\n");
   int nb_recv = 0;                    // nombre total d'octet reçus
 
   unsigned char code, size;
   char *data;
 
   // si fichier vide, retourner 0
-  if (fz == 0) return 0;
-
+  if (fz == 0) 
+    return 0;
+  printf("---RECEIVE FILE---\n");
   for (;;) {
+    int recvCode = recv_msg(sd, &code, &size, &data);
+    printf("bytes received: %i", recvCode);
+    printf("size: %s\n", size);
+    nb_recv += size;
+    
+    if (size == 0)
+      return 1;
   };
 
   return -1;
@@ -130,24 +139,26 @@ int main(int argc, char *argv[])
   // Création de la socket et connexion au serveur
   clt_sock = connect_to_server(srv_name, SRV_PORT);
   if (clt_sock == -1)
-    printf("clt_sock == -1");
+    printf("clt_sock: -1");
 
   // Envoi de la requête contenant le nom du fichier à télécharger
-  printf("file_name size == %i\n",sizeof(file_name));
-  int sendCode = send_msg(clt_sock, GET_FILE, 15, file_name);
-  printf("sendCode == %i\n",sendCode);
+  int sendCode = send_msg(clt_sock, GET_FILE, (unsigned char) strlen(file_name), 
+    &file_name);
+  printf("sendCode: %i\n", sendCode);
 
   // Réception de la réponse du serveur
-  recv(clt_sock, data, BUFF_SIZE, 0);
-  printf("%s\n",data);
-  recv(clt_sock, file_size, BUFF_SIZE, 0);
-  file_size = atoi(file_size);
+  int recvCode = recv_msg(clt_sock, &code, &size, &data);
+  printf("file_size: %s\n", &data);
+  file_size = atoi(&data);
+  int recCode = reception_fichier(file_fd, clt_sock, file_size);
+  printf("recCode: %i\n", recCode);
+  /*file_size = atoi(file_size);
   printf("File size: %s octets\n",data);
-
+*/
 
   // Test du code d'erreur retourné par le serveur
   // TODO
-
+/*
   printf("Le fichier %s fait %d octets\n", file_name, file_size);
 
   // Création du fichier destination
@@ -159,7 +170,7 @@ int main(int argc, char *argv[])
       send_msg(clt_sock, END_ERROR, 0, NULL);
       exit(-1);
     }
-
+*/
   // Récupération du contenu du fichier
 
   return EXIT_SUCCESS;
