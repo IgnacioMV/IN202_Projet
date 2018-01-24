@@ -113,14 +113,14 @@ ssize_t transfert_fichier(int sd, int fd) {
   printf("---SEND FILE---\n");
   while ((size = read(fd, buff, BUFF_SIZE)) > 0)
   {
-    
+
     nb_sent += size;
     printf("size: %zd\n", size);
     send_msg(sd, DATA, size, &buff);
   };
   printf("nb_sent total: %zd\n", nb_sent);
   /* Envoi du message de fin de fichier */
-  send_msg(sd, END_OK, 0, NULL);
+  send_msg(sd, END_OK, 0, &buff);
 
   return nb_sent;
 }
@@ -142,7 +142,7 @@ int requete_client(int sock)
   //printf("received %i octets\n", size);
   if (code == GET_FILE)
     printf("GET_FILE\n");
-  
+
   printf("reqCode: %i\n",reqCode);
   if (reqCode == -1)
     PERROR("reqCode: -1");

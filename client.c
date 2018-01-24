@@ -84,24 +84,31 @@ int connect_to_server(char *srv_name, char *srv_port){
  */
 int reception_fichier(int fd, int sd, int fz)
 {
-  printf("receiving file\n");
   int nb_recv = 0;                    // nombre total d'octet reçus
 
   unsigned char code, size;
   char *data;
 
   // si fichier vide, retourner 0
-  if (fz == 0) 
+  if (fz == 0)
     return 0;
   printf("---RECEIVE FILE---\n");
   for (;;) {
     int recvCode = recv_msg(sd, &code, &size, &data);
-    printf("bytes received: %i", recvCode);
-    printf("size: %s\n", size);
+    printf("recvCode: %i\n", recvCode);
+    printf("size: %i\n", size);
     nb_recv += size;
-    
-    if (size == 0)
-      return 1;
+    printf("nb_recv: %i\n", nb_recv);
+    printf("data size: %i\n", strlen(&data));
+
+    if (size == 0) {
+      close(fd);
+      printf("exit reception_fichier\n");
+      return nb_recv;
+    }
+    printf("writing...\n");
+    int writeCode = write(fd, &data, size);
+    printf("writeCode: %i\n",writeCode);
   };
 
   return -1;
@@ -142,36 +149,35 @@ int main(int argc, char *argv[])
     printf("clt_sock: -1");
 
   // Envoi de la requête contenant le nom du fichier à télécharger
-  int sendCode = send_msg(clt_sock, GET_FILE, (unsigned char) strlen(file_name), 
+  int sendCode = send_msg(clt_sock, GET_FILE, (unsigned char) strlen(file_name),
     &file_name);
   printf("sendCode: %i\n", sendCode);
 
   // Réception de la réponse du serveur
   int recvCode = recv_msg(clt_sock, &code, &size, &data);
-  printf("file_size: %s\n", &data);
+  printf("File size: %s octets\n", &data);
   file_size = atoi(&data);
-  int recCode = reception_fichier(file_fd, clt_sock, file_size);
-  printf("recCode: %i\n", recCode);
-  /*file_size = atoi(file_size);
-  printf("File size: %s octets\n",data);
-*/
 
   // Test du code d'erreur retourné par le serveur
   // TODO
-/*
+
   printf("Le fichier %s fait %d octets\n", file_name, file_size);
 
   // Création du fichier destination
-  file_fd = open(file_name, O_CREAT|O_WRONLY|O_TRUNC, 00644);
-
+  file_fd = open("received", O_CREAT|O_WRONLY|O_TRUNC, 00644);
+  printf("file_fd: %i\n",file_fd);
   if ( file_fd == -1 )
     {
       perror("client: erreur lors de la création du fichier");
       send_msg(clt_sock, END_ERROR, 0, NULL);
       exit(-1);
     }
-*/
+
   // Récupération du contenu du fichier
+  int recCode = reception_fichier(file_fd, clt_sock, file_size);
+  printf("---FINISHED WRITING---\n");
+  printf("recCode: %i\n", recCode);
+  close(file_fd);
 
   return EXIT_SUCCESS;
 }
